@@ -2,6 +2,7 @@ import io
 import os
 import re
 import secrets
+import base64
 import shutil
 import socket
 from datetime import datetime
@@ -15,12 +16,10 @@ from flask import (
     session,
     url_for,
     send_from_directory,
-    send_file,
 )
 from werkzeug.exceptions import RequestEntityTooLarge
 from werkzeug.utils import secure_filename
 import qrcode
-from PIL import Image
 
 from app import db
 from app.models import DriveLink
@@ -34,7 +33,6 @@ ALLOWED_EXTENSIONS = {
     'mp4', 'webm', 'ogg', 'mov', 'mkv',
     'mp3', 'wav', 'm4a', 'aac', 'flac'
 }
-FIXED_QR_FILENAME = 'QR Code.png'
 
 
 def login_required(view):
@@ -72,23 +70,6 @@ def get_current_link():
     return DriveLink.query.first()
 
 
-def get_network_scan_url():
-    local_ip = get_local_network_ip()
-    if not local_ip:
-        return None
-
-    port = request.environ.get('SERVER_PORT', '5000')
-    return f'http://{local_ip}:{port}{url_for("main.scan_current")}'
-
-
-def get_qr_scan_url():
-    host = request.host.split(':', 1)[0].lower()
-    if host in {'127.0.0.1', 'localhost'}:
-        return get_network_scan_url() or url_for('main.scan_current', _external=True)
-
-    return url_for('main.scan_current', _external=True)
-
-
 def get_storage_filename(token: str, filename: str) -> str:
     ext = os.path.splitext(filename)[1].lower()
     return f'{token}{ext}'
@@ -105,41 +86,15 @@ def get_preview_type(filename: str) -> str:
     return 'link'
 
 
-def generate_qr_image(target_url: str) -> io.BytesIO:
-    qr = qrcode.QRCode(
-        version=None,
-        error_correction=qrcode.constants.ERROR_CORRECT_H,
-        box_size=16,
-        border=4,
-    )
-    qr.add_data(target_url)
+def generate_qr_data(text: str) -> str:
+    qr = qrcode.QRCode(box_size=10, border=2)
+    qr.add_data(text)
     qr.make(fit=True)
-    qr_image = qr.make_image(fill_color='black', back_color='white').convert('RGBA')
-
-    template_path = os.path.abspath(os.path.join(current_app.root_path, '..', FIXED_QR_FILENAME))
-    if os.path.exists(template_path):
-        template = Image.open(template_path).convert('RGBA')
-        crop_size = int(min(template.size) * 0.52)
-        left = (template.width - crop_size) // 2
-        top = (template.height - crop_size) // 2
-        portrait = template.crop((left, top, left + crop_size, top + crop_size))
-
-        logo_size = int(qr_image.width * 0.42)
-        portrait = portrait.resize((logo_size, logo_size), Image.Resampling.LANCZOS)
-
-        padding = int(qr_image.width * 0.025)
-        holder_size = logo_size + (padding * 2)
-        holder = Image.new('RGBA', (holder_size, holder_size), 'white')
-        holder.paste(portrait, (padding, padding), portrait)
-
-        x = (qr_image.width - holder.width) // 2
-        y = (qr_image.height - holder.height) // 2
-        qr_image.paste(holder, (x, y), holder)
-
+    image = qr.make_image(fill_color='black', back_color='white')
     buffer = io.BytesIO()
-    qr_image.convert('RGB').save(buffer, format='PNG')
+    image.save(buffer, format='PNG')
     buffer.seek(0)
-    return buffer
+    return base64.b64encode(buffer.read()).decode('utf-8')
 
 
 def get_local_network_ip():
@@ -228,20 +183,24 @@ def dashboard():
     current_file = None
     scan_url = None
     network_scan_url = None
-    qr_image_url = None
+    qr_base64 = None
 
     if current_link and current_link.filename:
         current_file = current_link
-        scan_url = get_qr_scan_url()
-        qr_image_url = url_for('main.fixed_qr_code')
-        network_scan_url = get_network_scan_url()
+        scan_url = url_for('main.view_link', token=current_link.token, _external=True)
+        local_ip = get_local_network_ip()
+        if local_ip:
+            port = request.environ.get('SERVER_PORT', '5000')
+            network_scan_url = f'http://{local_ip}:{port}{url_for("main.view_link", token=current_link.token)}'
+        qr_target = scan_url
+        qr_base64 = generate_qr_data(qr_target)
 
     return render_template(
         'dashboard.html',
         current_file=current_file,
         scan_url=scan_url,
         network_scan_url=network_scan_url,
-        qr_image_url=qr_image_url,
+        qr_base64=qr_base64,
     )
 
 
@@ -362,21 +321,6 @@ def remove():
 @main_bp.route('/media/<filename>')
 def serve_media(filename):
     return send_from_directory(current_app.config['UPLOAD_FOLDER'], filename, as_attachment=False)
-
-
-@main_bp.route('/fixed-qr-code')
-def fixed_qr_code():
-    target_url = get_qr_scan_url()
-    return send_file(generate_qr_image(target_url), mimetype='image/png')
-
-
-@main_bp.route('/scan')
-def scan_current():
-    link = get_current_link()
-    if not link or not link.filename:
-        return render_template('view.html', error='No content is currently published for this QR code.')
-
-    return redirect(url_for('main.view_link', token=link.token))
 
 
 @main_bp.route('/view/<token>')
