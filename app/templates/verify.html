@@ -1,0 +1,32 @@
+{% extends 'base.html' %}
+
+{% block title %}Verify Upload{% endblock %}
+
+{% block content %}
+<div class="card">
+    <h2>Verify Upload</h2>
+    <p>Please confirm the file below before publishing.</p>
+    <div class="preview-box">
+        <p><strong>Filename:</strong> {{ file_name }}</p>
+        {% if preview_url %}
+        <div class="media-preview">
+            {% if preview_type == 'image' %}
+                <img src="{{ preview_url }}" alt="Image preview">
+            {% elif preview_type == 'video' %}
+                <video controls src="{{ preview_url }}"></video>
+            {% elif preview_type == 'audio' %}
+                <audio controls src="{{ preview_url }}"></audio>
+            {% else %}
+                <p><a href="{{ preview_url }}" target="_blank">Open file</a></p>
+            {% endif %}
+        </div>
+        {% endif %}
+    </div>
+    <form method="post" action="{{ url_for('main.publish') }}">
+        <input type="hidden" name="temp_filename" value="{{ temp_filename }}">
+        <input type="hidden" name="content_type" value="{{ content_type }}">
+        <button type="submit">Publish File</button>
+        <a class="button secondary" href="{{ url_for('main.dashboard') }}">Cancel</a>
+    </form>
+</div>
+{% endblock %}

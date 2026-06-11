@@ -1,0 +1,39 @@
+{% extends 'base.html' %}
+
+{% block title %}Admin Dashboard{% endblock %}
+
+{% block content %}
+<div class="card">
+    <h2>Dashboard</h2>
+    <p>Upload a single image, video, or audio file and publish it with a permanent QR code.</p>
+
+    <form method="post" action="{{ url_for('main.verify') }}" enctype="multipart/form-data">
+        <label for="media_file">Upload Media</label>
+        <input type="file" id="media_file" name="media_file" accept="image/*,video/*,audio/*" required>
+        <button type="submit">Verify Upload</button>
+    </form>
+</div>
+
+{% if current_file %}
+<div class="card">
+    <h3>Current Published Media</h3>
+    <p><strong>Filename:</strong> {{ current_file.filename }}</p>
+    <p><strong>Type:</strong> {{ current_file.content_type }}</p>
+    <p><strong>View URL:</strong> <a href="{{ url_for('main.serve_media', filename=current_file.filename, _external=True) }}" target="_blank">Open Media</a></p>
+    <p><strong>Scan URL:</strong> <code>{{ scan_url }}</code></p>
+    {% if network_scan_url %}
+    <p><strong>Network URL:</strong> <code>{{ network_scan_url }}</code></p>
+    <p class="note">Use the network URL on your mobile device when phone and computer are on the same Wi-Fi.</p>
+    {% endif %}
+    {% if qr_base64 %}
+    <div class="qr-card">
+        <h4>QR Code</h4>
+        <img src="data:image/png;base64,{{ qr_base64 }}" alt="QR Code">
+    </div>
+    {% endif %}
+    <form method="post" action="{{ url_for('main.remove') }}" class="remove-form">
+        <button type="submit" class="button secondary">Remove Current Upload</button>
+    </form>
+</div>
+{% endif %}
+{% endblock %}

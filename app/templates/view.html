@@ -1,0 +1,26 @@
+{% extends 'base.html' %}
+
+{% block title %}View Content{% endblock %}
+
+{% block content %}
+<div class="card">
+    {% if error %}
+        <h2>Error</h2>
+        <p>{{ error }}</p>
+        <a class="button" href="{{ url_for('main.index') }}">Back to Home</a>
+    {% else %}
+        <h2>Published Content</h2>
+        <div class="media-preview">
+            {% if preview_type == 'image' %}
+                <img src="{{ media_url }}" alt="Published image">
+            {% elif preview_type == 'video' %}
+                <video controls src="{{ media_url }}"></video>
+            {% elif preview_type == 'audio' %}
+                <audio controls src="{{ media_url }}"></audio>
+            {% else %}
+                <p><a href="{{ media_url }}" target="_blank">Open published content</a></p>
+            {% endif %}
+        </div>
+    {% endif %}
+</div>
+{% endblock %}
