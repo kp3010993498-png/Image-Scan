@@ -20,15 +20,16 @@
     <p><strong>Filename:</strong> {{ current_file.filename }}</p>
     <p><strong>Type:</strong> {{ current_file.content_type }}</p>
     <p><strong>View URL:</strong> <a href="{{ url_for('main.serve_media', filename=current_file.filename, _external=True) }}" target="_blank">Open Media</a></p>
-    <p><strong>Scan URL:</strong> <code>{{ scan_url }}</code></p>
+    <p><strong>Permanent Scan URL:</strong> <code>{{ scan_url }}</code></p>
     {% if network_scan_url %}
     <p><strong>Network URL:</strong> <code>{{ network_scan_url }}</code></p>
     <p class="note">Use the network URL on your mobile device when phone and computer are on the same Wi-Fi.</p>
     {% endif %}
-    {% if qr_base64 %}
+    {% if qr_image_url %}
     <div class="qr-card">
-        <h4>QR Code</h4>
-        <img src="data:image/png;base64,{{ qr_base64 }}" alt="QR Code">
+        <h4>Permanent QR Code</h4>
+        <img src="{{ qr_image_url }}" alt="Permanent QR Code">
+        <p class="note">This QR opens the current published media and stays the same when you replace the upload.</p>
     </div>
     {% endif %}
     <form method="post" action="{{ url_for('main.remove') }}" class="remove-form">
