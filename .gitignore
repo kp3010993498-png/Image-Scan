@@ -3,3 +3,5 @@ __pycache__/
 instance/
 app.db
 .env
+venv/
+app/uploads/
