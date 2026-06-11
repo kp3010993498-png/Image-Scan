@@ -192,7 +192,7 @@ def dashboard():
         if local_ip:
             port = request.environ.get('SERVER_PORT', '5000')
             network_scan_url = f'http://{local_ip}:{port}{url_for("main.view_link", token=current_link.token)}'
-        qr_target = network_scan_url or scan_url
+        qr_target = scan_url
         qr_base64 = generate_qr_data(qr_target)
 
     return render_template(
