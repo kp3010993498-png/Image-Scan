@@ -473,6 +473,7 @@ def playlist_view_current():
     
     # Check if playlist has an active schedule
     schedule = PlaylistSchedule.query.filter_by(playlist_id=push.playlist_id, is_active=True).first()
+    is_scheduled_time = False
     if schedule:
         now = datetime.now()
         current_date = now.date()
@@ -484,6 +485,7 @@ def playlist_view_current():
         window_end = scheduled_dt + timedelta(minutes=5)
         if not (window_start <= now <= window_end):
             return render_template('view.html', error=f'This playlist is scheduled for {schedule.scheduled_date} at {schedule.scheduled_time.strftime("%H:%M")}. It will automatically play at that time.')
+        is_scheduled_time = True
     
     # record scan
     try:
@@ -498,7 +500,7 @@ def playlist_view_current():
     for it in items:
         media.append({'url': url_for('main.serve_media', filename=it.filename, _external=True), 'type': get_preview_type(it.filename)})
 
-    return render_template('playlist_view.html', media=media, playlist=push.playlist)
+    return render_template('playlist_view.html', media=media, playlist=push.playlist, is_scheduled_time=is_scheduled_time)
 
 
 @main_bp.route('/playlist/view/<token>')
@@ -506,6 +508,20 @@ def playlist_view(token):
     push = PlaylistPush.query.filter_by(token=token, active=True).first()
     if not push:
         return render_template('view.html', error='This playlist QR code is not active or does not exist.')
+    
+    # Check if playlist has an active schedule
+    schedule = PlaylistSchedule.query.filter_by(playlist_id=push.playlist_id, is_active=True).first()
+    is_scheduled_time = False
+    if schedule:
+        now = datetime.now()
+        from datetime import timedelta
+        scheduled_dt = datetime.combine(schedule.scheduled_date, schedule.scheduled_time)
+        window_start = scheduled_dt - timedelta(minutes=5)
+        window_end = scheduled_dt + timedelta(minutes=5)
+        if not (window_start <= now <= window_end):
+            return render_template('view.html', error=f'This playlist is scheduled for {schedule.scheduled_date} at {schedule.scheduled_time.strftime("%H:%M")}. It will automatically play at that time.')
+        is_scheduled_time = True
+    
     # record scan
     try:
         rec = ScanRecord(push_id=push.id, remote_addr=request.remote_addr)
@@ -519,7 +535,7 @@ def playlist_view(token):
     for it in items:
         media.append({'url': url_for('main.serve_media', filename=it.filename, _external=True), 'type': get_preview_type(it.filename)})
 
-    return render_template('playlist_view.html', media=media, playlist=push.playlist)
+    return render_template('playlist_view.html', media=media, playlist=push.playlist, is_scheduled_time=is_scheduled_time)
 
 
 @main_bp.route('/playlists/<int:playlist_id>/pushes')

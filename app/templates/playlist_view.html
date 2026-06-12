@@ -5,6 +5,11 @@
 {% block content %}
 <div class="card">
     <h2>{{ playlist.name }}</h2>
+    {% if is_scheduled_time %}
+    <div style="padding: 10px; background: #d4edda; border: 1px solid #28a745; border-radius: 4px; margin-bottom: 10px;">
+        <strong>✓ Scheduled time - Auto-playing now</strong>
+    </div>
+    {% endif %}
     <div id="player-area">
         <div id="player-header" class="player-header"></div>
         <div id="media-container"></div>
@@ -13,6 +18,7 @@
 
 <script>
 const mediaList = {{ media|tojson }};
+const isScheduledTime = {{ 'true' if is_scheduled_time else 'false' }};
 let index = 0;
 const container = document.getElementById('media-container');
 const header = document.getElementById('player-header');
@@ -44,25 +50,38 @@ function playNext() {
         v.src = m.url;
         v.controls = true;
         v.autoplay = true;
-        v.muted = true;
+        v.muted = isScheduledTime ? false : true;
         v.playsInline = true;
         v.className = 'media-full';
         v.onended = () => { index++; playNext(); };
         container.appendChild(v);
-        v.play().catch(() => {
-            header.textContent = 'Tap play to start video.';
-        });
+        setTimeout(() => {
+            v.play().catch(() => {
+                if (isScheduledTime) {
+                    header.textContent = 'Auto-play blocked by browser. Tap play to continue.';
+                } else {
+                    header.textContent = 'Tap play to start video.';
+                }
+            });
+        }, 100);
     } else if (m.type === 'audio') {
         const a = document.createElement('audio');
         a.src = m.url;
         a.controls = true;
         a.autoplay = true;
+        a.muted = isScheduledTime ? false : true;
         a.className = 'media-full';
         a.onended = () => { index++; playNext(); };
         container.appendChild(a);
-        a.play().catch(() => {
-            header.textContent = 'Tap play to start audio.';
-        });
+        setTimeout(() => {
+            a.play().catch(() => {
+                if (isScheduledTime) {
+                    header.textContent = 'Auto-play blocked by browser. Tap play to continue.';
+                } else {
+                    header.textContent = 'Tap play to start audio.';
+                }
+            });
+        }, 100);
     } else {
         const a = document.createElement('a');
         a.href = m.url;
