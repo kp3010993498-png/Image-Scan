@@ -6,6 +6,7 @@
 <div class="card">
     <h2>{{ playlist.name }}</h2>
     <div id="player-area">
+        <div id="player-header" class="player-header"></div>
         <div id="media-container"></div>
     </div>
 </div>
@@ -14,43 +15,64 @@
 const mediaList = {{ media|tojson }};
 let index = 0;
 const container = document.getElementById('media-container');
+const header = document.getElementById('player-header');
+
+function updateHeader() {
+    if (mediaList.length === 0) {
+        header.textContent = 'No media available.';
+        return;
+    }
+    header.textContent = `Playing item ${index + 1} of ${mediaList.length}`;
+}
 
 function playNext() {
     container.innerHTML = '';
-    if (index >= mediaList.length) return;
+    if (index >= mediaList.length) {
+        header.textContent = 'Playlist complete.';
+        return;
+    }
+    updateHeader();
     const m = mediaList[index];
     if (m.type === 'image') {
         const img = document.createElement('img');
         img.src = m.url;
-        img.style.width = '100%';
+        img.className = 'media-full';
         container.appendChild(img);
-        // show image for 6 seconds then next
         setTimeout(() => { index++; playNext(); }, 6000);
     } else if (m.type === 'video') {
         const v = document.createElement('video');
         v.src = m.url;
-        v.controls = false;
+        v.controls = true;
         v.autoplay = true;
-        v.style.width = '100%';
+        v.muted = true;
+        v.playsInline = true;
+        v.className = 'media-full';
         v.onended = () => { index++; playNext(); };
         container.appendChild(v);
-        v.play().catch(()=>{ index++; playNext(); });
+        v.play().catch(() => {
+            header.textContent = 'Tap play to start video.';
+        });
     } else if (m.type === 'audio') {
         const a = document.createElement('audio');
         a.src = m.url;
-        a.controls = false;
+        a.controls = true;
         a.autoplay = true;
+        a.className = 'media-full';
         a.onended = () => { index++; playNext(); };
         container.appendChild(a);
-        a.play().catch(()=>{ index++; playNext(); });
+        a.play().catch(() => {
+            header.textContent = 'Tap play to start audio.';
+        });
     } else {
         const a = document.createElement('a');
         a.href = m.url;
         a.textContent = 'Open content';
+        a.target = '_blank';
         container.appendChild(a);
     }
 }
 
 if (mediaList.length > 0) playNext();
+else updateHeader();
 </script>
 {% endblock %}

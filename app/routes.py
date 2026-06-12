@@ -407,6 +407,22 @@ def playlist_upload(playlist_id):
     return redirect(url_for('main.playlist_detail', playlist_id=playlist_id))
 
 
+@main_bp.route('/playlists/<int:playlist_id>/item/<int:item_id>/delete', methods=['POST'])
+@login_required
+def playlist_item_delete(playlist_id, item_id):
+    item = PlaylistItem.query.filter_by(id=item_id, playlist_id=playlist_id).first_or_404()
+    file_path = os.path.join(current_app.config['UPLOAD_FOLDER'], item.filename)
+    if os.path.exists(file_path):
+        try:
+            os.remove(file_path)
+        except OSError:
+            pass
+    db.session.delete(item)
+    db.session.commit()
+    flash('Item removed from playlist.', 'info')
+    return redirect(url_for('main.playlist_detail', playlist_id=playlist_id))
+
+
 @main_bp.route('/playlists/<int:playlist_id>/reorder', methods=['POST'])
 @login_required
 def playlist_reorder(playlist_id):

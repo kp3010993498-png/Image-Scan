@@ -17,11 +17,18 @@
     {% if playlist.items %}
     <h4>Items</h4>
     <div>
-        <ol id="items-list">
+        <ul id="items-list" class="playlist-items">
             {% for it in playlist.items %}
-            <li draggable="true" data-id="{{ it.id }}">{{ it.filename }} ({{ it.content_type }})</li>
+            <li class="playlist-item" draggable="true" data-id="{{ it.id }}">
+                <div class="item-content">
+                    <span class="item-label">{{ it.filename }} ({{ it.content_type }})</span>
+                    <form method="post" action="{{ url_for('main.playlist_item_delete', playlist_id=playlist.id, item_id=it.id) }}" class="item-delete-form" onsubmit="return confirm('Remove this item from the playlist?');">
+                        <button type="submit" class="button secondary small">Delete</button>
+                    </form>
+                </div>
+            </li>
             {% endfor %}
-        </ol>
+        </ul>
         <p class="note">Drag items to reorder, then click Save Order.</p>
         <button id="save-order">Save Order</button>
     </div>
@@ -54,36 +61,48 @@ function handleDragOver(e) {
 }
 
 function handleDrop(e) {
-    e.stopPropagation();
-    if (dragSrc !== this) {
-        const src = dragSrc;
-        const target = this;
-        const srcHTML = src.innerHTML;
-        src.innerHTML = target.innerHTML;
-        target.innerHTML = srcHTML;
-        // swap data-id attributes
-        const srcId = src.getAttribute('data-id');
-        const tgtId = target.getAttribute('data-id');
-        src.setAttribute('data-id', tgtId);
-        target.setAttribute('data-id', srcId);
+    e.preventDefault();
+    if (dragSrc === this) return;
+    const afterElement = getDragAfterElement(list, e.clientY);
+    if (afterElement == null) {
+        list.appendChild(dragSrc);
+    } else {
+        list.insertBefore(dragSrc, afterElement);
     }
-    return false;
+}
+
+function handleDragEnd() {
+    this.classList.remove('dragging');
+}
+
+function getDragAfterElement(container, y) {
+    const draggableElements = [...container.querySelectorAll('.playlist-item:not(.dragging)')];
+    return draggableElements.reduce((closest, child) => {
+        const box = child.getBoundingClientRect();
+        const offset = y - box.top - box.height / 2;
+        if (offset < 0 && offset > closest.offset) {
+            return { offset: offset, element: child };
+        } else {
+            return closest;
+        }
+    }, { offset: Number.NEGATIVE_INFINITY }).element;
 }
 
 function addDnDHandlers(item) {
     item.addEventListener('dragstart', handleDragStart, false);
     item.addEventListener('dragover', handleDragOver, false);
     item.addEventListener('drop', handleDrop, false);
+    item.addEventListener('dragend', handleDragEnd, false);
 }
 
 Array.from(list.querySelectorAll('li')).forEach(addDnDHandlers);
 
 document.getElementById('save-order').addEventListener('click', function(){
-    const ids = Array.from(list.querySelectorAll('li')).map(li=>li.getAttribute('data-id'));
+    const ids = Array.from(list.querySelectorAll('li')).map(li => li.getAttribute('data-id'));
     fetch('{{ url_for('main.playlist_reorder', playlist_id=playlist.id) }}', {
         method: 'POST',
         headers: {'Content-Type':'application/json'},
-        body: JSON.stringify({order: ids})
+        body: JSON.stringify({order: ids}),
     }).then(r=>{
         if (r.ok) location.reload(); else alert('Failed to save order');
     }).catch(()=>alert('Network error'));

@@ -76,13 +76,16 @@ button,.button{background:var(--accent);color:#fff;border:none;padding:10px 14px
 
 /* Playlist list */
 #items-list{list-style:none;padding:0;margin:0}
-#items-list li{background:#f8fafc;padding:12px;border-radius:8px;margin-bottom:8px;cursor:grab}
-#items-list li:active{cursor:grabbing}
+.playlist-item{background:#f8fafc;padding:14px;border-radius:10px;margin-bottom:10px;cursor:grab;display:flex;align-items:center;justify-content:space-between;transition:transform 0.2s ease, box-shadow 0.2s ease}
+.playlist-item.dragging{opacity:0.6;transform:scale(1.02);box-shadow:0 12px 24px rgba(37,99,235,0.15)}
+.item-content{display:flex;align-items:center;gap:12px;width:100%;justify-content:space-between}
+.item-label{font-weight:600;color:#0f172a}
+.button.small{padding:8px 12px;font-size:0.92rem}
 
 /* Tables */
 table{width:100%;border-collapse:collapse}
-thead th{text-align:left;padding:8px;color:var(--muted);font-weight:700}
-tbody td{padding:10px;border-top:1px solid #f1f5f9}
+thead th{text-align:left;padding:12px;color:var(--muted);font-weight:700}
+tbody td{padding:14px;border-top:1px solid #f1f5f9}
 
 /* Responsive */
 @media (max-width:900px){
