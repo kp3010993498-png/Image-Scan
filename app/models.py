@@ -18,6 +18,7 @@ class Playlist(db.Model):
     name = db.Column(db.String(200), nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
     items = db.relationship('PlaylistItem', backref='playlist', cascade='all, delete-orphan', order_by='PlaylistItem.sequence')
+    schedules = db.relationship('PlaylistSchedule', backref='playlist', cascade='all, delete-orphan', single_parent=True)
 
     def __repr__(self):
         return f'<Playlist {self.id} name={self.name}>'
@@ -67,8 +68,6 @@ class PlaylistSchedule(db.Model):
     scheduled_time = db.Column(db.Time, nullable=False)
     is_active = db.Column(db.Boolean, default=True, nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
-
-    playlist = db.relationship('Playlist', backref='schedules', cascade='all, delete-orphan')
 
     def __repr__(self):
         return f'<PlaylistSchedule {self.id} playlist={self.playlist_id} date={self.scheduled_date} time={self.scheduled_time}>'
