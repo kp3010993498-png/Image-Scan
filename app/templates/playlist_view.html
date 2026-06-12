@@ -50,15 +50,20 @@ function playNext() {
         v.src = m.url;
         v.controls = true;
         v.autoplay = true;
-        v.muted = isScheduledTime ? false : true;
+        v.muted = true;
         v.playsInline = true;
         v.className = 'media-full';
         v.onended = () => { index++; playNext(); };
+        v.onplay = () => {
+            if (isScheduledTime) {
+                setTimeout(() => { v.muted = false; }, 500);
+            }
+        };
         container.appendChild(v);
         setTimeout(() => {
             v.play().catch(() => {
                 if (isScheduledTime) {
-                    header.textContent = 'Auto-play blocked by browser. Tap play to continue.';
+                    header.textContent = 'Auto-play blocked. Tap play to continue.';
                 } else {
                     header.textContent = 'Tap play to start video.';
                 }
@@ -69,14 +74,19 @@ function playNext() {
         a.src = m.url;
         a.controls = true;
         a.autoplay = true;
-        a.muted = isScheduledTime ? false : true;
+        a.muted = true;
         a.className = 'media-full';
         a.onended = () => { index++; playNext(); };
+        a.onplay = () => {
+            if (isScheduledTime) {
+                setTimeout(() => { a.muted = false; }, 500);
+            }
+        };
         container.appendChild(a);
         setTimeout(() => {
             a.play().catch(() => {
                 if (isScheduledTime) {
-                    header.textContent = 'Auto-play blocked by browser. Tap play to continue.';
+                    header.textContent = 'Auto-play blocked. Tap play to continue.';
                 } else {
                     header.textContent = 'Tap play to start audio.';
                 }

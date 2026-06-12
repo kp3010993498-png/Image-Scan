@@ -469,7 +469,7 @@ def playlist_push(playlist_id):
 def playlist_view_current():
     push = PlaylistPush.query.filter_by(active=True).order_by(PlaylistPush.created_at.desc()).first()
     if not push:
-        return render_template('view.html', error='No playlist has been pushed yet.')
+        return render_template('view.html', error='No playlist has been pushed yet.', is_scheduling=False)
     
     # Check if playlist has an active schedule
     schedule = PlaylistSchedule.query.filter_by(playlist_id=push.playlist_id, is_active=True).first()
@@ -484,7 +484,7 @@ def playlist_view_current():
         window_start = scheduled_dt - timedelta(minutes=5)
         window_end = scheduled_dt + timedelta(minutes=5)
         if not (window_start <= now <= window_end):
-            return render_template('view.html', error=f'This playlist is scheduled for {schedule.scheduled_date} at {schedule.scheduled_time.strftime("%H:%M")}. It will automatically play at that time.')
+            return render_template('view.html', error=f'This playlist is scheduled for {schedule.scheduled_date} at {schedule.scheduled_time.strftime("%H:%M")}. It will automatically play at that time.', is_scheduling=True)
         is_scheduled_time = True
     
     # record scan
@@ -507,7 +507,7 @@ def playlist_view_current():
 def playlist_view(token):
     push = PlaylistPush.query.filter_by(token=token, active=True).first()
     if not push:
-        return render_template('view.html', error='This playlist QR code is not active or does not exist.')
+        return render_template('view.html', error='This playlist QR code is not active or does not exist.', is_scheduling=False)
     
     # Check if playlist has an active schedule
     schedule = PlaylistSchedule.query.filter_by(playlist_id=push.playlist_id, is_active=True).first()
@@ -519,7 +519,7 @@ def playlist_view(token):
         window_start = scheduled_dt - timedelta(minutes=5)
         window_end = scheduled_dt + timedelta(minutes=5)
         if not (window_start <= now <= window_end):
-            return render_template('view.html', error=f'This playlist is scheduled for {schedule.scheduled_date} at {schedule.scheduled_time.strftime("%H:%M")}. It will automatically play at that time.')
+            return render_template('view.html', error=f'This playlist is scheduled for {schedule.scheduled_date} at {schedule.scheduled_time.strftime("%H:%M")}. It will automatically play at that time.', is_scheduling=True)
         is_scheduled_time = True
     
     # record scan
