@@ -459,10 +459,31 @@ def playlist_push(playlist_id):
     push = PlaylistPush(playlist_id=pl.id, token=token, active=True)
     db.session.add(push)
     db.session.commit()
-    push_url = url_for('main.playlist_view', token=token, _external=True)
+    push_url = url_for('main.playlist_view_current', _external=True)
     qr_base64 = generate_qr_data(push_url)
-    flash('Playlist pushed. Share the QR code with users.', 'success')
+    flash('Playlist pushed. Share the stable QR code with users.', 'success')
     return render_template('playlist_pushed.html', playlist=pl, push=push, push_url=push_url, qr_base64=qr_base64)
+
+
+@main_bp.route('/playlist/current')
+def playlist_view_current():
+    push = PlaylistPush.query.filter_by(active=True).order_by(PlaylistPush.created_at.desc()).first()
+    if not push:
+        return render_template('view.html', error='No playlist has been pushed yet.')
+    # record scan
+    try:
+        rec = ScanRecord(push_id=push.id, remote_addr=request.remote_addr)
+        db.session.add(rec)
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+
+    items = PlaylistItem.query.filter_by(playlist_id=push.playlist_id).order_by(PlaylistItem.sequence).all()
+    media = []
+    for it in items:
+        media.append({'url': url_for('main.serve_media', filename=it.filename, _external=True), 'type': get_preview_type(it.filename)})
+
+    return render_template('playlist_view.html', media=media, playlist=push.playlist)
 
 
 @main_bp.route('/playlist/view/<token>')
@@ -479,7 +500,6 @@ def playlist_view(token):
         db.session.rollback()
 
     items = PlaylistItem.query.filter_by(playlist_id=push.playlist_id).order_by(PlaylistItem.sequence).all()
-    # build absolute media urls
     media = []
     for it in items:
         media.append({'url': url_for('main.serve_media', filename=it.filename, _external=True), 'type': get_preview_type(it.filename)})
