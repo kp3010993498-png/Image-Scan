@@ -1,0 +1,36 @@
+{% extends 'base.html' %}
+
+{% block title %}Pushes for {{ playlist.name }}{% endblock %}
+
+{% block content %}
+<div class="card">
+    <h2>Push History: {{ playlist.name }}</h2>
+    {% if rows %}
+    <table>
+        <thead>
+            <tr><th>Token / URL</th><th>Created</th><th>Scans</th><th>Active</th><th>Actions</th></tr>
+        </thead>
+        <tbody>
+            {% for push, scan_count in rows %}
+            <tr>
+                <td><a href="{{ url_for('main.playlist_view', token=push.token) }}" target="_blank">{{ push.token }}</a></td>
+                <td>{{ push.created_at.strftime('%Y-%m-%d %H:%M') }}</td>
+                <td>{{ scan_count }}</td>
+                <td>{{ 'Yes' if push.active else 'No' }}</td>
+                <td>
+                    {% if push.active %}
+                    <form method="post" action="{{ url_for('main.deactivate_push', push_id=push.id) }}" style="display:inline">
+                        <button type="submit">Deactivate</button>
+                    </form>
+                    {% endif %}
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <p>No pushes for this playlist yet.</p>
+    {% endif %}
+    <a class="button" href="{{ url_for('main.playlist_detail', playlist_id=playlist.id) }}">Back</a>
+</div>
+{% endblock %}

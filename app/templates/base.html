@@ -7,33 +7,61 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 <body>
-    <div class="container">
-        <header>
-            <h1>QR Link Admin</h1>
+    <div class="app-grid">
+        <aside class="sidebar">
+            <div class="brand">
+                <h2>QR Admin</h2>
+            </div>
             {% if session.admin_logged_in %}
-            <nav>
-                <a href="{{ url_for('main.dashboard') }}">Dashboard</a>
-                <a href="{{ url_for('main.logout') }}">Logout</a>
+            <nav class="sidebar-nav">
+                <a href="{{ url_for('main.dashboard') }}" class="nav-link">Dashboard</a>
+                <a href="{{ url_for('main.playlists') }}" class="nav-link">Playlists</a>
+                <a href="{{ url_for('main.logout') }}" class="nav-link">Logout</a>
             </nav>
             {% endif %}
-        </header>
+        </aside>
 
-        {% with messages = get_flashed_messages(with_categories=true) %}
-            {% if messages %}
-                <div class="flash-container">
-                    {% for category, message in messages %}
-                        <div class="flash {{ category }}">{{ message }}</div>
-                    {% endfor %}
-                </div>
-            {% endif %}
-        {% endwith %}
+        <div class="main-area">
+            <header class="topbar">
+                <button id="menu-toggle" class="menu-btn">☰</button>
+                <div class="topbar-title">QR Link Admin</div>
+            </header>
 
-        <main>
-            {% block content %}{% endblock %}
-        </main>
-        <footer>
-            <p>Simple admin panel for publishing a single Google Drive link.</p>
-        </footer>
+            {% with messages = get_flashed_messages(with_categories=true) %}
+                {% if messages %}
+                    <div class="flash-container">
+                        {% for category, message in messages %}
+                            <div class="flash {{ category }}">{{ message }}</div>
+                        {% endfor %}
+                    </div>
+                {% endif %}
+            {% endwith %}
+
+            <main class="content">
+                {% block content %}{% endblock %}
+            </main>
+
+            <footer class="footer">
+                <p>Manage playlists & QR pushes</p>
+            </footer>
+        </div>
     </div>
+    {% block scripts %}
+    <script>
+    (function(){
+        const btn = document.getElementById('menu-toggle');
+        const sidebar = document.querySelector('.sidebar');
+        if (!btn || !sidebar) return;
+        btn.addEventListener('click', ()=>{
+            if (sidebar.style.display === 'block') sidebar.style.display = '';
+            else sidebar.style.display = 'block';
+        });
+        // hide sidebar on small screens by default
+        function onResize(){ if (window.innerWidth <= 900) sidebar.style.display = 'none'; else sidebar.style.display = ''; }
+        window.addEventListener('resize', onResize);
+        onResize();
+    })();
+    </script>
+    {% endblock %}
 </body>
 </html>

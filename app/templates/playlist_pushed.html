@@ -1,0 +1,16 @@
+{% extends 'base.html' %}
+
+{% block title %}Playlist Pushed{% endblock %}
+
+{% block content %}
+<div class="card">
+    <h2>Playlist Pushed</h2>
+    <p><strong>Playlist:</strong> {{ playlist.name }}</p>
+    <p><strong>Push URL:</strong> <a href="{{ push_url }}" target="_blank">{{ push_url }}</a></p>
+    <div class="qr-card">
+        <img src="data:image/png;base64,{{ qr_base64 }}" alt="QR Code">
+    </div>
+    <p class="note">Scan this QR with a phone to open the playlist player.</p>
+    <a class="button" href="{{ url_for('main.playlists') }}">Back to Playlists</a>
+</div>
+{% endblock %}

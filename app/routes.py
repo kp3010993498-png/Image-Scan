@@ -22,7 +22,7 @@ from werkzeug.utils import secure_filename
 import qrcode
 
 from app import db
-from app.models import DriveLink
+from app.models import DriveLink, Playlist, PlaylistItem, PlaylistPush, ScanRecord
 
 main_bp = Blueprint('main', __name__)
 
@@ -68,6 +68,13 @@ def get_local_network_ip():
 
 def get_current_link():
     return DriveLink.query.first()
+
+
+def get_playlist(push_token: str):
+    push = PlaylistPush.query.filter_by(token=push_token, active=True).first()
+    if not push:
+        return None
+    return push.playlist
 
 
 def get_storage_filename(token: str, filename: str) -> str:
@@ -195,12 +202,20 @@ def dashboard():
         qr_target = scan_url
         qr_base64 = generate_qr_data(qr_target)
 
+    # playlist metrics
+    playlist_count = Playlist.query.count()
+    active_push_count = PlaylistPush.query.filter_by(active=True).count()
+    total_scans = db.session.query(db.func.count(ScanRecord.id)).scalar() or 0
+
     return render_template(
         'dashboard.html',
         current_file=current_file,
         scan_url=scan_url,
         network_scan_url=network_scan_url,
         qr_base64=qr_base64,
+        playlist_count=playlist_count,
+        active_push_count=active_push_count,
+        total_scans=total_scans,
     )
 
 
@@ -332,3 +347,151 @@ def view_link(token):
     media_url = url_for('main.serve_media', filename=link.filename, _external=True)
     preview_type = get_preview_type(link.filename)
     return render_template('view.html', media_url=media_url, preview_type=preview_type)
+
+
+@main_bp.route('/playlists')
+@login_required
+def playlists():
+    all_playlists = Playlist.query.order_by(Playlist.created_at.desc()).all()
+    return render_template('playlists.html', playlists=all_playlists)
+
+
+@main_bp.route('/playlists/create', methods=['POST'])
+@login_required
+def create_playlist():
+    name = request.form.get('name', '').strip()
+    if not name:
+        flash('Please provide a playlist name.', 'warning')
+        return redirect(url_for('main.playlists'))
+    pl = Playlist(name=name)
+    db.session.add(pl)
+    db.session.commit()
+    flash('Playlist created.', 'success')
+    return redirect(url_for('main.playlist_detail', playlist_id=pl.id))
+
+
+@main_bp.route('/playlists/<int:playlist_id>')
+@login_required
+def playlist_detail(playlist_id):
+    pl = Playlist.query.get_or_404(playlist_id)
+    return render_template('playlist_detail.html', playlist=pl)
+
+
+@main_bp.route('/playlists/<int:playlist_id>/upload', methods=['POST'])
+@login_required
+def playlist_upload(playlist_id):
+    pl = Playlist.query.get_or_404(playlist_id)
+    file = request.files.get('media_file')
+    if not file or file.filename == '':
+        flash('Please choose a file to upload.', 'warning')
+        return redirect(url_for('main.playlist_detail', playlist_id=playlist_id))
+    if not allowed_file(file.filename):
+        flash('Invalid file type.', 'danger')
+        return redirect(url_for('main.playlist_detail', playlist_id=playlist_id))
+
+    filename = secure_filename(file.filename)
+    stored_name = f'{secrets.token_urlsafe(12)}{os.path.splitext(filename)[1]}'
+    final_path = os.path.join(current_app.config['UPLOAD_FOLDER'], stored_name)
+    try:
+        file.save(final_path)
+    except Exception:
+        flash('Failed to save uploaded file.', 'danger')
+        return redirect(url_for('main.playlist_detail', playlist_id=playlist_id))
+
+    # determine next sequence
+    max_seq = db.session.query(db.func.max(PlaylistItem.sequence)).filter(PlaylistItem.playlist_id == pl.id).scalar() or 0
+    item = PlaylistItem(playlist_id=pl.id, filename=stored_name, content_type=file.mimetype, sequence=(max_seq or 0) + 1)
+    db.session.add(item)
+    db.session.commit()
+    flash('File added to playlist.', 'success')
+    return redirect(url_for('main.playlist_detail', playlist_id=playlist_id))
+
+
+@main_bp.route('/playlists/<int:playlist_id>/reorder', methods=['POST'])
+@login_required
+def playlist_reorder(playlist_id):
+    pl = Playlist.query.get_or_404(playlist_id)
+    # Accept JSON order (AJAX) or form order (legacy)
+    if request.is_json:
+        data = request.get_json()
+        order = data.get('order', [])
+    else:
+        order = request.form.getlist('order')
+
+    try:
+        for idx, item_id in enumerate(order, start=1):
+            it = PlaylistItem.query.filter_by(id=int(item_id), playlist_id=pl.id).first()
+            if it:
+                it.sequence = idx
+        db.session.commit()
+        if request.is_json:
+            return {'status': 'ok'}
+        flash('Playlist reordered.', 'success')
+    except Exception:
+        db.session.rollback()
+        if request.is_json:
+            return {'status': 'error'}, 500
+        flash('Failed to reorder playlist.', 'danger')
+    return redirect(url_for('main.playlist_detail', playlist_id=playlist_id))
+
+
+@main_bp.route('/playlists/<int:playlist_id>/push', methods=['POST'])
+@login_required
+def playlist_push(playlist_id):
+    pl = Playlist.query.get_or_404(playlist_id)
+    token = secrets.token_urlsafe(12)
+    push = PlaylistPush(playlist_id=pl.id, token=token, active=True)
+    db.session.add(push)
+    db.session.commit()
+    push_url = url_for('main.playlist_view', token=token, _external=True)
+    qr_base64 = generate_qr_data(push_url)
+    flash('Playlist pushed. Share the QR code with users.', 'success')
+    return render_template('playlist_pushed.html', playlist=pl, push=push, push_url=push_url, qr_base64=qr_base64)
+
+
+@main_bp.route('/playlist/view/<token>')
+def playlist_view(token):
+    push = PlaylistPush.query.filter_by(token=token, active=True).first()
+    if not push:
+        return render_template('view.html', error='This playlist QR code is not active or does not exist.')
+    # record scan
+    try:
+        rec = ScanRecord(push_id=push.id, remote_addr=request.remote_addr)
+        db.session.add(rec)
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+
+    items = PlaylistItem.query.filter_by(playlist_id=push.playlist_id).order_by(PlaylistItem.sequence).all()
+    # build absolute media urls
+    media = []
+    for it in items:
+        media.append({'url': url_for('main.serve_media', filename=it.filename, _external=True), 'type': get_preview_type(it.filename)})
+
+    return render_template('playlist_view.html', media=media, playlist=push.playlist)
+
+
+@main_bp.route('/playlists/<int:playlist_id>/pushes')
+@login_required
+def playlist_pushes(playlist_id):
+    pl = Playlist.query.get_or_404(playlist_id)
+    # get pushes with scan counts
+    rows = (
+        db.session.query(PlaylistPush, db.func.count(ScanRecord.id).label('scan_count'))
+        .outerjoin(ScanRecord, PlaylistPush.id == ScanRecord.push_id)
+        .filter(PlaylistPush.playlist_id == pl.id)
+        .group_by(PlaylistPush.id)
+        .order_by(PlaylistPush.created_at.desc())
+        .all()
+    )
+    return render_template('playlist_pushes.html', playlist=pl, rows=rows)
+
+
+@main_bp.route('/push/<int:push_id>/deactivate', methods=['POST'])
+@login_required
+def deactivate_push(push_id):
+    push = PlaylistPush.query.get_or_404(push_id)
+    push.active = False
+    db.session.commit()
+    flash('Push deactivated.', 'info')
+    return redirect(url_for('main.playlist_pushes', playlist_id=push.playlist_id))

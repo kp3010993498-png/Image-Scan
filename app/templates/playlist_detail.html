@@ -1,0 +1,92 @@
+{% extends 'base.html' %}
+
+{% block title %}Manage Playlist{% endblock %}
+
+{% block content %}
+<div class="card">
+    <h2>Manage: {{ playlist.name }}</h2>
+    <p>Created: {{ playlist.created_at.strftime('%Y-%m-%d %H:%M') }}</p>
+
+    <h4>Add Media</h4>
+    <form method="post" action="{{ url_for('main.playlist_upload', playlist_id=playlist.id) }}" enctype="multipart/form-data">
+        <label for="media_file">Choose file</label>
+        <input type="file" id="media_file" name="media_file" accept="image/*,video/*,audio/*" required>
+        <button type="submit">Upload to Playlist</button>
+    </form>
+
+    {% if playlist.items %}
+    <h4>Items</h4>
+    <div>
+        <ol id="items-list">
+            {% for it in playlist.items %}
+            <li draggable="true" data-id="{{ it.id }}">{{ it.filename }} ({{ it.content_type }})</li>
+            {% endfor %}
+        </ol>
+        <p class="note">Drag items to reorder, then click Save Order.</p>
+        <button id="save-order">Save Order</button>
+    </div>
+
+    <form method="post" action="{{ url_for('main.playlist_push', playlist_id=playlist.id) }}">
+        <button type="submit">Push Playlist (Generate QR)</button>
+        <a class="button secondary" href="{{ url_for('main.playlist_pushes', playlist_id=playlist.id) }}">View Pushes</a>
+    </form>
+    {% else %}
+    <p>No items yet in this playlist.</p>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// Simple HTML5 drag-drop for list reordering
+const list = document.getElementById('items-list');
+let dragSrc = null;
+
+function handleDragStart(e) {
+    dragSrc = this;
+    e.dataTransfer.effectAllowed = 'move';
+}
+
+function handleDragOver(e) {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    return false;
+}
+
+function handleDrop(e) {
+    e.stopPropagation();
+    if (dragSrc !== this) {
+        const src = dragSrc;
+        const target = this;
+        const srcHTML = src.innerHTML;
+        src.innerHTML = target.innerHTML;
+        target.innerHTML = srcHTML;
+        // swap data-id attributes
+        const srcId = src.getAttribute('data-id');
+        const tgtId = target.getAttribute('data-id');
+        src.setAttribute('data-id', tgtId);
+        target.setAttribute('data-id', srcId);
+    }
+    return false;
+}
+
+function addDnDHandlers(item) {
+    item.addEventListener('dragstart', handleDragStart, false);
+    item.addEventListener('dragover', handleDragOver, false);
+    item.addEventListener('drop', handleDrop, false);
+}
+
+Array.from(list.querySelectorAll('li')).forEach(addDnDHandlers);
+
+document.getElementById('save-order').addEventListener('click', function(){
+    const ids = Array.from(list.querySelectorAll('li')).map(li=>li.getAttribute('data-id'));
+    fetch('{{ url_for('main.playlist_reorder', playlist_id=playlist.id) }}', {
+        method: 'POST',
+        headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({order: ids})
+    }).then(r=>{
+        if (r.ok) location.reload(); else alert('Failed to save order');
+    }).catch(()=>alert('Network error'));
+});
+</script>
+{% endblock %}

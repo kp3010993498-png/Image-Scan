@@ -1,0 +1,56 @@
+{% extends 'base.html' %}
+
+{% block title %}Playlist: {{ playlist.name }}{% endblock %}
+
+{% block content %}
+<div class="card">
+    <h2>{{ playlist.name }}</h2>
+    <div id="player-area">
+        <div id="media-container"></div>
+    </div>
+</div>
+
+<script>
+const mediaList = {{ media|tojson }};
+let index = 0;
+const container = document.getElementById('media-container');
+
+function playNext() {
+    container.innerHTML = '';
+    if (index >= mediaList.length) return;
+    const m = mediaList[index];
+    if (m.type === 'image') {
+        const img = document.createElement('img');
+        img.src = m.url;
+        img.style.width = '100%';
+        container.appendChild(img);
+        // show image for 6 seconds then next
+        setTimeout(() => { index++; playNext(); }, 6000);
+    } else if (m.type === 'video') {
+        const v = document.createElement('video');
+        v.src = m.url;
+        v.controls = false;
+        v.autoplay = true;
+        v.style.width = '100%';
+        v.onended = () => { index++; playNext(); };
+        container.appendChild(v);
+        v.play().catch(()=>{ index++; playNext(); });
+    } else if (m.type === 'audio') {
+        const a = document.createElement('audio');
+        a.src = m.url;
+        a.controls = false;
+        a.autoplay = true;
+        a.onended = () => { index++; playNext(); };
+        container.appendChild(a);
+        a.play().catch(()=>{ index++; playNext(); });
+    } else {
+        const a = document.createElement('a');
+        a.href = m.url;
+        a.textContent = 'Open content';
+        container.appendChild(a);
+    }
+}
+
+if (mediaList.length > 0) playNext();
+</script>
+{% endblock %}

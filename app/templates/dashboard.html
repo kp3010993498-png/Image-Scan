@@ -5,7 +5,7 @@
 {% block content %}
 <div class="card">
     <h2>Dashboard</h2>
-    <p>Upload a single image, video, or audio file and publish it with a permanent QR code.</p>
+    <p>Publish single media or manage playlists. Use QR codes to share with users.</p>
 
     <form method="post" action="{{ url_for('main.verify') }}" enctype="multipart/form-data">
         <label for="media_file">Upload Media</label>
@@ -36,4 +36,10 @@
     </form>
 </div>
 {% endif %}
+ 
+<div class="card">
+    <h3>Playlists Overview</h3>
+    <p><strong>Playlists:</strong> {{ playlist_count }} &nbsp; • &nbsp; <strong>Active pushes:</strong> {{ active_push_count }} &nbsp; • &nbsp; <strong>Total scans:</strong> {{ total_scans }}</p>
+    <a class="button" href="{{ url_for('main.playlists') }}">Manage Playlists</a>
+</div>
 {% endblock %}
