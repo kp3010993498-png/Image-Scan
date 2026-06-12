@@ -33,6 +33,21 @@
         <button id="save-order">Save Order</button>
     </div>
 
+    <h4>Schedule</h4>
+    <form method="post" action="{{ url_for('main.set_playlist_schedule', playlist_id=playlist.id) }}">
+        <label for="scheduled_date">Date</label>
+        <input type="date" id="scheduled_date" name="scheduled_date" {% if playlist.schedules %}value="{{ playlist.schedules[0].scheduled_date }}"{% endif %}>
+        <label for="scheduled_time">Time</label>
+        <input type="time" id="scheduled_time" name="scheduled_time" {% if playlist.schedules %}value="{{ playlist.schedules[0].scheduled_time.strftime('%H:%M') }}"{% endif %}>
+        <button type="submit">Set Schedule</button>
+        {% if playlist.schedules %}
+        <button type="submit" formaction="{{ url_for('main.remove_playlist_schedule', playlist_id=playlist.id) }}" class="button secondary">Remove Schedule</button>
+        {% endif %}
+    </form>
+    {% if playlist.schedules %}
+    <p class="note">Scheduled for <strong>{{ playlist.schedules[0].scheduled_date }}</strong> at <strong>{{ playlist.schedules[0].scheduled_time.strftime('%H:%M') }}</strong></p>
+    {% endif %}
+
     <form method="post" action="{{ url_for('main.playlist_push', playlist_id=playlist.id) }}">
         <button type="submit">Push Playlist (Generate QR)</button>
         <a class="button secondary" href="{{ url_for('main.playlist_pushes', playlist_id=playlist.id) }}">View Pushes</a>

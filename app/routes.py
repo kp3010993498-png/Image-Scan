@@ -5,7 +5,7 @@ import secrets
 import base64
 import shutil
 import socket
-from datetime import datetime
+from datetime import datetime, date, time as dt_time
 from flask import (
     Blueprint,
     current_app,
@@ -22,7 +22,7 @@ from werkzeug.utils import secure_filename
 import qrcode
 
 from app import db
-from app.models import DriveLink, Playlist, PlaylistItem, PlaylistPush, ScanRecord
+from app.models import DriveLink, Playlist, PlaylistItem, PlaylistPush, ScanRecord, PlaylistSchedule
 
 main_bp = Blueprint('main', __name__)
 
@@ -470,6 +470,21 @@ def playlist_view_current():
     push = PlaylistPush.query.filter_by(active=True).order_by(PlaylistPush.created_at.desc()).first()
     if not push:
         return render_template('view.html', error='No playlist has been pushed yet.')
+    
+    # Check if playlist has an active schedule
+    schedule = PlaylistSchedule.query.filter_by(playlist_id=push.playlist_id, is_active=True).first()
+    if schedule:
+        now = datetime.now()
+        current_date = now.date()
+        current_time = now.time()
+        # Check if we're within the scheduled window (allow 5 min before and after)
+        from datetime import timedelta
+        scheduled_dt = datetime.combine(schedule.scheduled_date, schedule.scheduled_time)
+        window_start = scheduled_dt - timedelta(minutes=5)
+        window_end = scheduled_dt + timedelta(minutes=5)
+        if not (window_start <= now <= window_end):
+            return render_template('view.html', error=f'This playlist is scheduled for {schedule.scheduled_date} at {schedule.scheduled_time.strftime("%H:%M")}. It will automatically play at that time.')
+    
     # record scan
     try:
         rec = ScanRecord(push_id=push.id, remote_addr=request.remote_addr)
@@ -531,3 +546,44 @@ def deactivate_push(push_id):
     db.session.commit()
     flash('Push deactivated.', 'info')
     return redirect(url_for('main.playlist_pushes', playlist_id=push.playlist_id))
+
+
+@main_bp.route('/playlists/<int:playlist_id>/schedule', methods=['POST'])
+@login_required
+def set_playlist_schedule(playlist_id):
+    pl = Playlist.query.get_or_404(playlist_id)
+    scheduled_date_str = request.form.get('scheduled_date', '')
+    scheduled_time_str = request.form.get('scheduled_time', '')
+    
+    if not scheduled_date_str or not scheduled_time_str:
+        flash('Please provide both date and time.', 'warning')
+        return redirect(url_for('main.playlist_detail', playlist_id=playlist_id))
+    
+    try:
+        from datetime import datetime as dt
+        scheduled_date = dt.strptime(scheduled_date_str, '%Y-%m-%d').date()
+        scheduled_time = dt.strptime(scheduled_time_str, '%H:%M').time()
+        
+        # Delete existing schedules for this playlist
+        PlaylistSchedule.query.filter_by(playlist_id=pl.id).delete()
+        
+        # Create new schedule
+        schedule = PlaylistSchedule(playlist_id=pl.id, scheduled_date=scheduled_date, scheduled_time=scheduled_time, is_active=True)
+        db.session.add(schedule)
+        db.session.commit()
+        flash(f'Playlist scheduled for {scheduled_date} at {scheduled_time.strftime("%H:%M")}.', 'success')
+    except Exception as e:
+        db.session.rollback()
+        flash(f'Failed to set schedule: {str(e)}', 'danger')
+    
+    return redirect(url_for('main.playlist_detail', playlist_id=playlist_id))
+
+
+@main_bp.route('/playlists/<int:playlist_id>/schedule/remove', methods=['POST'])
+@login_required
+def remove_playlist_schedule(playlist_id):
+    pl = Playlist.query.get_or_404(playlist_id)
+    PlaylistSchedule.query.filter_by(playlist_id=pl.id).delete()
+    db.session.commit()
+    flash('Schedule removed. Playlist will play immediately when scanned.', 'info')
+    return redirect(url_for('main.playlist_detail', playlist_id=playlist_id))

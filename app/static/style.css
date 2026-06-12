@@ -51,7 +51,7 @@ body{
 
 /* Forms and inputs */
 label{display:block;margin-bottom:8px;font-weight:700}
-input[type='text'],input[type='password'],input[type='url'],input[type='file']{width:100%;padding:12px;border-radius:10px;border:1px solid #e6eef8;margin-bottom:12px}
+input[type='text'],input[type='password'],input[type='url'],input[type='file'],input[type='date'],input[type='time']{width:100%;padding:12px;border-radius:10px;border:1px solid #e6eef8;margin-bottom:12px}
 
 button,.button{background:var(--accent);color:#fff;border:none;padding:10px 14px;border-radius:10px;font-weight:700;cursor:pointer}
 .button.secondary{background:#f3f4f6;color:#0f172a}

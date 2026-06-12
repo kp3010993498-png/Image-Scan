@@ -58,3 +58,17 @@ class ScanRecord(db.Model):
 
     def __repr__(self):
         return f'<ScanRecord {self.id} push={self.push_id} at={self.scanned_at}>'
+
+
+class PlaylistSchedule(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    playlist_id = db.Column(db.Integer, db.ForeignKey('playlist.id'), nullable=False)
+    scheduled_date = db.Column(db.Date, nullable=False)
+    scheduled_time = db.Column(db.Time, nullable=False)
+    is_active = db.Column(db.Boolean, default=True, nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+
+    playlist = db.relationship('Playlist', backref='schedules', cascade='all, delete-orphan')
+
+    def __repr__(self):
+        return f'<PlaylistSchedule {self.id} playlist={self.playlist_id} date={self.scheduled_date} time={self.scheduled_time}>'
