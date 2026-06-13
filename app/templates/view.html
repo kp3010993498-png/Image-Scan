@@ -7,8 +7,42 @@
     {% if error %}
         <h2>{% if is_scheduling %}⏱ Scheduled Playlist{% else %}Error{% endif %}</h2>
         <p>{{ error }}</p>
-        {% if not is_scheduling %}
-        <a class="button" href="{{ url_for('main.index') }}">Back to Home</a>
+        {% if is_scheduling %}
+            <p class="note">Server time: <strong>{{ server_now }}</strong></p>
+            <p class="note">Scheduled window: <strong>{{ window_start }}</strong> — <strong>{{ window_end }}</strong></p>
+            {% if auto_refresh %}
+            <script>
+            (function(){
+                try {
+                    const serverNow = new Date("{{ server_now }}").getTime();
+                    const windowStart = new Date("{{ window_start }}").getTime();
+                    const windowEnd = new Date("{{ window_end }}").getTime();
+                    const clientNow = Date.now();
+                    const offset = serverNow - clientNow; // server - client
+                    // calculate when to reload (client time)
+                    const reloadAtClient = windowStart - offset;
+                    const now = Date.now();
+                    const delay = Math.max(0, reloadAtClient - now + 50);
+                    // If scheduled time already passed on client side, reload immediately
+                    if (now + offset >= windowStart) {
+                        location.reload(true);
+                        return;
+                    }
+                    if (delay <= 1000 * 60 * 60) { // only schedule if within 1 hour
+                        setTimeout(function(){ location.reload(true); }, delay);
+                    }
+                    // safety: poll every 15s and reload if server time reached window
+                    const poll = setInterval(function(){
+                        if (Date.now() + offset >= windowStart) { location.reload(true); clearInterval(poll); }
+                    }, 15000);
+                } catch (e) {
+                    console.log('Auto-refresh setup failed', e);
+                }
+            })();
+            </script>
+            {% endif %}
+        {% else %}
+            <a class="button" href="{{ url_for('main.index') }}">Back to Home</a>
         {% endif %}
     {% else %}
         <h2>Published Content</h2>

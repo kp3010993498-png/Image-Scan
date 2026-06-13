@@ -54,8 +54,17 @@ def allowed_file(filename: str) -> bool:
 
 def get_local_network_ip():
     sock = None
-    try:
-        sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        if not (window_start <= now <= window_end):
+            return render_template(
+                'view.html',
+                error=f'This playlist is scheduled for {schedule.scheduled_date} at {schedule.scheduled_time.strftime("%H:%M")}. It will automatically play at that time.',
+                is_scheduling=True,
+                server_now=now.isoformat(),
+                scheduled_dt=scheduled_dt.isoformat(),
+                window_start=window_start.isoformat(),
+                window_end=window_end.isoformat(),
+                auto_refresh=True,
+            )
         sock.connect(("8.8.8.8", 80))
         ip = sock.getsockname()[0]
     except OSError:
@@ -484,7 +493,16 @@ def playlist_view_current():
         window_start = scheduled_dt - timedelta(minutes=5)
         window_end = scheduled_dt + timedelta(minutes=5)
         if not (window_start <= now <= window_end):
-            return render_template('view.html', error=f'This playlist is scheduled for {schedule.scheduled_date} at {schedule.scheduled_time.strftime("%H:%M")}. It will automatically play at that time.', is_scheduling=True)
+            return render_template(
+                'view.html',
+                error=f'This playlist is scheduled for {schedule.scheduled_date} at {schedule.scheduled_time.strftime("%H:%M")}. It will automatically play at that time.',
+                is_scheduling=True,
+                server_now=now.isoformat(),
+                scheduled_dt=scheduled_dt.isoformat(),
+                window_start=window_start.isoformat(),
+                window_end=window_end.isoformat(),
+                auto_refresh=True,
+            )
         is_scheduled_time = True
     
     # record scan
