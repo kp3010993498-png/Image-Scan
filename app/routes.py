@@ -437,9 +437,13 @@ def playlist_reorder(playlist_id):
     return redirect(url_for('main.playlist_detail', playlist_id=playlist_id))
 
 
-@main_bp.route('/playlists/<int:playlist_id>/push', methods=['POST'])
+@main_bp.route('/playlists/<int:playlist_id>/push', methods=['GET', 'POST'])
 @login_required
 def playlist_push(playlist_id):
+    if request.method == 'GET':
+        flash('Use the Push Playlist button on the playlist page to push the playlist.', 'warning')
+        return redirect(url_for('main.playlist_detail', playlist_id=playlist_id))
+
     pl = Playlist.query.get_or_404(playlist_id)
     token = secrets.token_urlsafe(12)
     push = PlaylistPush(playlist_id=pl.id, token=token, active=True)
